@@ -26,11 +26,15 @@ import org.springframework.lang.Nullable;
  * A BeanDefinition describes a bean instance, which has property values,
  * constructor argument values, and further information supplied by
  * concrete implementations.
+ * BeanDefinition
  *
  * <p>This is just a minimal interface: The main intention is to allow a
  * {@link BeanFactoryPostProcessor} to introspect and modify property values
  * and other bean metadata.
- *
+ * <p>描述了一个bean实例，它具有属性值，构造函数参数值以及具体实现所提供的更多信息。
+ * 其中BeanDefinition是配置文件bean元素标签在容器中的内部表示形式。
+ * <p> bean元素标签拥有class、scope、lazy-init等配置属性，
+ * BeanDefinition则提供了相应的beanClass、scope、lazyInit属性，BeanDefinition和bean中的属性是一一对应的
  * @author Juergen Hoeller
  * @author Rob Harrop
  * @since 19.03.2004

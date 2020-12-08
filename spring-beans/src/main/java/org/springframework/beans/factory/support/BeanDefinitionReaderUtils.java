@@ -47,6 +47,7 @@ public abstract class BeanDefinitionReaderUtils {
 	/**
 	 * Create a new GenericBeanDefinition for the given parent name and class name,
 	 * eagerly loading the bean class if a ClassLoader has been specified.
+	 * <p>为给定的父名称和类名称创建一个新的GenericBeanDefinition，如果已指定ClassLoader，则立刻加载Bean类。
 	 * @param parentName the name of the parent bean, if any
 	 * @param className the name of the bean class, if any
 	 * @param classLoader the ClassLoader to use for loading bean classes
@@ -58,9 +59,11 @@ public abstract class BeanDefinitionReaderUtils {
 			@Nullable String parentName, @Nullable String className, @Nullable ClassLoader classLoader) throws ClassNotFoundException {
 
 		GenericBeanDefinition bd = new GenericBeanDefinition();
+		//parentName可能为空
 		bd.setParentName(parentName);
 		if (className != null) {
 			if (classLoader != null) {
+				//如果classLoader不为空，则使用以传入的classLoader同一虚拟机加载类对象，否则只是记录classname
 				bd.setBeanClass(ClassUtils.forName(className, classLoader));
 			}
 			else {

@@ -125,10 +125,41 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// the new (child) delegate with a reference to the parent for fallback purposes,
 		// then ultimately reset this.delegate back to its original (parent) reference.
 		// this behavior emulates a stack of delegates without actually necessitating one.
+		/*
+		  任何嵌套的<beans>元素都将导致此方法中的递归。
+		  为了正确传播和保留<beans> default- *属性，请跟踪当前（父）委托，该委托可以为null。
+		  创建一个新的（子）委托，并带有对父委托的引用，以进行回退，然后最终将其重置。
+		  将其委托回其原始（父）委托。此行为模拟了一组委托，而实际上并不需要。
+		 */
+		//专门处理解析
 		BeanDefinitionParserDelegate parent = this.delegate;
 		this.delegate = createDelegate(getReaderContext(), root, parent);
 
 		if (this.delegate.isDefaultNamespace(root)) {
+			/*
+			 处理profile属性，不同环境使用不同定义，profile的使用如下：
+			 <beans xmlns="http://www.Springframework.org/schema/beans"
+				 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				 xmlns:jdbc="http://www. Springframework.org/schema/jdbc"
+				 xmlns:jee="http://www.springframework.org/schema/jee"
+				 xsi:schemaLocation="...">
+			 ... ...
+				 <beans profile="dev">
+				 ... ...
+				 </beans>
+				 <beans profile="production">
+				 ... ...
+				 </beans>
+			 </beans>
+			 如果当前环境变量中指定的profile与beans属性中profile定义不同，则直接返回，不会浪费性能去解析不符合的环境beans
+			 可通过如下方式设置环境变量中的profile
+			 集成到Web环境中时，在web.xml中加入以下代码：
+			 <context-param>
+			     <param-name>Spring.profiles.active</param-name>
+			     <param-value>dev</param-value>
+			 </context-param>
+			 */
+
 			String profileSpec = root.getAttribute(PROFILE_ATTRIBUTE);
 			if (StringUtils.hasText(profileSpec)) {
 				String[] specifiedProfiles = StringUtils.tokenizeToStringArray(
@@ -140,13 +171,15 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 						logger.debug("Skipped XML bean definition file due to specified profiles [" + profileSpec +
 								"] not matching: " + getReaderContext().getResource());
 					}
+					// 如果当前环境变量中指定的profile与beans属性中profile定义不同，则直接返回，不会浪费性能去解析不符合的环境beans
 					return;
 				}
 			}
 		}
-
+		//解析前处理，留给子类实现
 		preProcessXml(root);
 		parseBeanDefinitions(root, this.delegate);
+		//解析后处理，留给子类实现
 		postProcessXml(root);
 
 		this.delegate = parent;
@@ -166,6 +199,9 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * @param root the DOM root element of the document
 	 */
 	protected void parseBeanDefinitions(Element root, BeanDefinitionParserDelegate delegate) {
+		// 根据命名空间判断解析方式
+		// 如果是默认命名空间（uri 等于http://www.springframework.org/schema/beans）
+		// 可解析的xml型如<bean id="test" class="test.TestBean"/>
 		if (delegate.isDefaultNamespace(root)) {
 			NodeList nl = root.getChildNodes();
 			for (int i = 0; i < nl.getLength(); i++) {
@@ -181,6 +217,8 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 				}
 			}
 		}
+		// 否则使用自定义解析
+		// 比如 <tx:annotation-driven/>
 		else {
 			delegate.parseCustomElement(root);
 		}
@@ -303,11 +341,15 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * and registering it with the registry.
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
+		// 首先委托BeanDefinitionDelegate类的parseBeanDefinitionElement方法进行元素解析，
+		// 返回BeanDefinitionHolder类型的实例bdHolder，经过这个方法后，bdHolder实例已经包含我们配置文件中配置的各种属性了，例如class、name、id、alias之类的属性。
 		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
 		if (bdHolder != null) {
+			// 当返回的bdHolder不为空的情况下若存在默认标签的子节点下再有自定义属性，还需要再次对自定义标签进行解析。
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.
+				//  解析完成后，需要对解析后的bdHolder进行注册，同样，注册操作委托给了BeanDefinitionReaderUtils的registerBeanDefinition方法。
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
 			}
 			catch (BeanDefinitionStoreException ex) {
@@ -315,6 +357,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 						bdHolder.getBeanName() + "'", ele, ex);
 			}
 			// Send registration event.
+			// 最后发出响应事件，通知相关的监听器，这个bean已经加载完成了。
 			getReaderContext().fireComponentRegistered(new BeanComponentDefinition(bdHolder));
 		}
 	}
