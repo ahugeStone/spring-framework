@@ -53,6 +53,44 @@ import org.springframework.lang.Nullable;
  * synchronization of bean creation. There is usually no need for internal
  * synchronization other than for purposes of lazy initialization within the
  * FactoryBean itself (or the like).
+ * <p>
+ * 当配置文件中< bean >的class属性配置的实现类是FactoryBean时，通过getBean()方法返回的不是FactoryBean本身，
+ * 而是FactoryBean#getObject()方法所返回的对象，相当于FactoryBean#getObject()代理了getBean()方法。
+ * 例如：如果使用传统方式配置下面Car的< bean >时，Car的每个属性分别对应一个< property >元素标签。
+ * public   class  Car  {
+ * 		private   int maxSpeed ;
+ * 		private  String brand ;
+ * 		private   double price ;
+ * 		//get/set方法
+ * }
+ *
+ * 如果用FactoryBean的方式实现就会灵活一些，下例通过逗号分割符的方式一次性地为Car的所有属性指定配置值：
+ * public   class  CarFactoryBean  implements  FactoryBean<Car>  {
+ * 		private  String carInfo ;
+ * 		public  Car getObject ()   throws  Exception  {
+ * 			Car car =  new  Car () ;
+ * 			String []  infos =  carInfo .split ( "," ) ;
+ * 			car.setBrand ( infos [0]) ;
+ * 			car.setMaxSpeed ( Integer. valueOf ( infos [1])) ;
+ * 			car.setPrice ( Double. valueOf ( infos [2])) ;
+ * 			return  car;
+ * 		}
+ * 		public  Class<Car> getObjectType (){
+ * 			return  Car.class ;
+ * 		}
+ * 		public   boolean  isSingleton ()   { return   false; }
+ * 		public  String getCarInfo ()   { return   this.carInfo ; }
+ * 		// 接受逗号分割符设置属性信息
+ * 		public   void  setCarInfo ( String carInfo )   {
+ * 			this.carInfo  = carInfo;
+ * 		}
+ * }
+ * 有了这个CarFactoryBean后，就可以在配置文件中使用下面这种自定义的配置方式配置Car Bean了：
+ * < bean id="car" class="com.test.factorybean.CarFactoryBean" carInfo="超级跑车,400,2000000"/ >
+ * 当调用getBean("car") 时，Spring通过反射机制发现CarFactoryBean实现了FactoryBean的接口，
+ * 这时Spring容器就调用接口方法CarFactoryBean#getObject()方法返回。
+ * 如果希望获取CarFactoryBean的实例，则需要在使用getBean(beanName) 方法时在beanName前显示的加上 "&" 前缀，
+ * 例如getBean("&car")。
  *
  * @author Rod Johnson
  * @author Juergen Hoeller

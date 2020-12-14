@@ -248,7 +248,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected <T> T doGetBean(
 			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
 			throws BeansException {
-		//提取对应的beanName
+		// 提取对应的beanName
 		// 删除name前的&符号，根据alias找到真实beanName
 		String beanName = transformedBeanName(name);
 		Object bean;
@@ -290,7 +290,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 			// Check if bean definition exists in this factory.
 			BeanFactory parentBeanFactory = getParentBeanFactory();
-			//如果beanDefinitionMap中也就是在所有已经加载的类中不包括beanName则尝试从
+			// 如果beanDefinitionMap中也就是在所有已经加载的类中不包括beanName则尝试从
 			// parentBeanFactory中检测
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 				// Not found -> check parent.
@@ -312,7 +312,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					return (T) parentBeanFactory.getBean(nameToLookup);
 				}
 			}
-			//如果不是仅仅做类型检查则是创建bean，这里要进行记录
+			// 如果不是仅仅做类型检查则是创建bean，这里要进行记录
 			if (!typeCheckOnly) {
 				markBeanAsCreated(beanName);
 			}
@@ -323,7 +323,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				if (requiredType != null) {
 					beanCreation.tag("beanType", requiredType::toString);
 				}
-				//将存储XML配置文件的GernericBeanDefinition转换为RootBeanDefinition，如果指定
+				// 将存储XML配置文件的GernericBeanDefinition转换为RootBeanDefinition，如果指定
 				// BeanName是子Bean的话同时会合并父类的相关属性
 				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				checkMergedBeanDefinition(mbd, beanName, args);
@@ -350,7 +350,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 
 				// Create bean instance.
-				// 实例化依赖的bean后便可以实例化mbd本身了
+				// 实例化依赖的bean后便可以实例化mbd本身了，最重要
 				// singleton模式的创建
 				if (mbd.isSingleton()) {
 					sharedInstance = getSingleton(beanName, () -> {
@@ -1857,6 +1857,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	/**
 	 * Get the object for the given bean instance, either the bean
 	 * instance itself or its created object in case of a FactoryBean.
+	 * <p>得到bean的实例后要做的第一步就是调用这个方法来检测一下正确性，
+	 * 其实就是用于检测当前bean是否是FactoryBean类型的bean，如果是，
+	 * 那么需要调用该bean对应的FactoryBean实例中的getObject()作为返回值。
+	 * 无论是从缓存中获取到的bean还是通过不同的scope策略加载的bean都只是最原始的bean状态，并不一定是我们最终想要的bean。
+	 * 举个例子，假如我们需要对工厂bean进行处理，那么这里得到的其实是工厂bean的初始状态，
+	 * 但是我们真正需要的是工厂bean中定义的factory-method方法中返回的bean，而getObjectForBeanInstance方法就是完成这个工作的。
 	 * @param beanInstance the shared bean instance
 	 * @param name the name that may include factory dereference prefix
 	 * @param beanName the canonical bean name
@@ -1867,10 +1873,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
+		// 如果Bean不是BeanFactory，则不要让调用代码尝试取消引用工厂。
+		// name如果以&为开头，说明用户想要返回返回的就是BeanFactory本身
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
+			// 是beanFactory
 			if (beanInstance instanceof NullBean) {
 				return beanInstance;
 			}
+			// 如果类型不匹配则报错
 			if (!(beanInstance instanceof FactoryBean)) {
 				throw new BeanIsNotAFactoryException(beanName, beanInstance.getClass());
 			}

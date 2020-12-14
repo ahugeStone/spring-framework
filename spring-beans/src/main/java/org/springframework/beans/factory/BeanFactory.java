@@ -17,6 +17,7 @@
 package org.springframework.beans.factory;
 
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.support.AbstractBeanFactory;
 import org.springframework.core.ResolvableType;
 import org.springframework.lang.Nullable;
 
